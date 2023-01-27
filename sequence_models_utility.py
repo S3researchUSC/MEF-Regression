@@ -75,6 +75,12 @@ def load_and_preprocess_sequence_data(data_file, feature_cols, days_in_train_blo
         data["X"] = CAISO_subset[feature_cols].values.astype(np.float32)
         data["y"] = CAISO_subset[y_col].values.astype(np.float32)
         data["bottleneck_X"] = CAISO_subset[bottleneck_feature_cols].values.astype(np.float32)
+    # add a "full" set containing the whole unsplit data from train/val/test in-order.
+    data_sets["full"] = {"X": CAISO_Data[feature_cols].values.astype(np.float32),
+                         "y": CAISO_Data[y_col].values.astype(np.float32),
+                         "bottleneck_X": CAISO_Data[bottleneck_feature_cols].values.astype(np.float32),
+                         "block_len": len(CAISO_Data),
+                        }
 
     # standardize data based on mean and variance of train data
     scaler = preprocessing.StandardScaler()
@@ -103,7 +109,7 @@ def load_and_preprocess_sequence_data(data_file, feature_cols, days_in_train_blo
         for block in blocks:
             block_len = len(block)
             assert block_len >= seq_len
-            seqs.extend([block[start: start+seq_len] for start in range(block_len - seq_len)])
+            seqs.extend([block[start: start+seq_len] for start in range(block_len - seq_len + 1)])
         return np.array(seqs)
 
     # split data to contiguous blocks, and expand to example sequences via sliding window over blocks
@@ -133,7 +139,8 @@ def get_y_pred(pred_coeff, bottleneck_X):
     
     return y_pred
 
-def plot_losses(train_losses, val_losses, plt_save_dir=None):
+def plot_losses(train_losses, val_losses, plt_save_dir=None, verbose=True):
+    plt.ioff()
     # plot loss vs epochs
     fig, axs = plt.subplots(1,2)
     axs[0].plot(train_losses[50:])
@@ -146,11 +153,14 @@ def plot_losses(train_losses, val_losses, plt_save_dir=None):
     axs[1].set_ylabel('loss')
     axs[1].set_xlabel('epoch')
     
-    plt.tight_layout()
-    plt.show()
+    if verbose:
+        plt.tight_layout()
+        plt.show()
     
     if plt_save_dir:
         fig.savefig(os.path.join(plt_save_dir, "train_val_losses.png"))
+        
+    plt.close(fig)
         
 def get_r_squared(pred_coeff, bottleneck_X, y):
     y_pred = get_y_pred(pred_coeff, bottleneck_X)
@@ -242,7 +252,7 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
                             learning_rate, weight_decay,  # optimizer settings
                             loss_function, MEF_reg_weight, MDF_reg_weight,  # loss function settings
                             model_dir, batch_size=None, epochs=10000, # train process settings
-                            print_freq=1000, min_save_r2=.87, max_save_mae=150000):  # train process settings
+                            print_freq=1000, min_save_r2=.87, max_save_mae=150000, verbose=True):  # train process settings
 
     train_set, val_set = data_sets["train"], data_sets["val"]      
     train_X, train_bottleneck_X, train_y = train_set["X"], train_set["bottleneck_X"], train_set["y"]
@@ -283,7 +293,8 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
     settings_str += f"\n\t{loss_function=}\n\t{MEF_reg_weight=}\n\t{MDF_reg_weight=}"
     settings_str += "\nTrain Process Settings:"
     settings_str += f"\n\t{batch_size=}\n\t{epochs=}\n\t{min_save_r2=}\n\t{max_save_mae=}"
-    print(settings_str)
+    if verbose:
+        print(settings_str)
     with open(os.path.join(model_dir, "experiment_settings.txt"), 'w+') as f:
         f.write(settings_str)
 
@@ -325,21 +336,26 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
             model.zero_grad()
             batch_train_loss.backward()
             optimizer.step()
+        del batch_train_pred_coeff
+        del batch_train_loss
         
         # tell model we are evaluating
         model.eval()
 
         # re-run on training data to get current train loss for the epoch
         train_pred_coeff = model(train_X.float())
-        train_loss = loss_function(train_pred_coeff, train_bottleneck_X, train_y, MEF_reg_weight, MDF_reg_weight)
-        train_losses.append(train_loss.item())
+        train_loss = loss_function(train_pred_coeff, train_bottleneck_X, train_y, MEF_reg_weight, MDF_reg_weight).item()
+        train_losses.append(train_loss)
+#         del train_loss
 
         # run on val data to evaluate how we are doing
         val_pred_coeff = model(val_X.float())
-        val_loss = loss_function(val_pred_coeff, val_bottleneck_X, val_y, MEF_reg_weight, MDF_reg_weight)
-        val_losses.append(val_loss.item())
+        val_loss = loss_function(val_pred_coeff, val_bottleneck_X, val_y, MEF_reg_weight, MDF_reg_weight).item()
+        val_losses.append(val_loss)
         val_r2 = get_r_squared(val_pred_coeff, val_bottleneck_X, val_y)
         val_mae = get_mean_abs_err(val_pred_coeff, val_bottleneck_X, val_y)
+#         del val_loss
+        
         if not final_point_only:
             val_r2_list = val_r2
             val_mae_list = val_mae
@@ -365,7 +381,7 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
             best_mae_epoch = epoch
 
         # check if we should save best r2 model
-        if val_r2 > max(best_r2_model["r2"], min_save_r2):
+        if val_r2 > best_r2_model["r2"]:
             # only continue with saving if this model has no invalids
             if sum(get_count_invalid_preds(val_pred_coeff))==0 and sum(get_count_invalid_preds(train_pred_coeff))==0:
                 # update best-r2-model stats
@@ -380,13 +396,15 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
                 and ("save_path" not in best_mae_model \
                 or best_r2_model["save_path"] != best_mae_model["save_path"]):
                     Path(best_r2_model["save_path"]).unlink() # delete prev-best model
-                model_save_name = f"epoch={epoch},r2={val_r2:.4f},mae={int(val_mae)},Invalids=0.pth"
-                save_model_path = os.path.join(model_dir, model_save_name)
-                best_r2_model["save_path"] = save_model_path
-                torch.save(model.state_dict(), save_model_path)
+                # save model if above threshold
+                if val_r2 > min_save_r2:
+                    model_save_name = f"epoch={epoch},r2={val_r2:.4f},mae={int(val_mae)},Invalids=0.pth"
+                    save_model_path = os.path.join(model_dir, model_save_name)
+                    best_r2_model["save_path"] = save_model_path
+                    torch.save(model.state_dict(), save_model_path)
 
         # check if we should save best mae model
-        if val_mae < min(best_mae_model["mae"], max_save_mae):
+        if val_mae < best_mae_model["mae"]:
             # if we already saved best-r2-model on this round, then that model is our best mae model
             if epoch in best_r2_model and best_r2_model["epoch"] == epoch:
                 best_mae_model["r2"] = val_r2
@@ -413,13 +431,15 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
                 and ("save_path" not in best_r2_model \
                 or best_r2_model["save_path"] != best_mae_model["save_path"]):
                     Path(best_mae_model["save_path"]).unlink() # delete prev-best model
-                model_save_name = f"epoch={epoch},r2={val_r2:.4f},mae={int(val_mae)},Invalids=0.pth"
-                save_model_path = os.path.join(model_dir, model_save_name)
-                best_mae_model["save_path"] = save_model_path
-                torch.save(model.state_dict(), save_model_path)
+                # save if below threshold
+                if val_mae < max_save_mae:
+                    model_save_name = f"epoch={epoch},r2={val_r2:.4f},mae={int(val_mae)},Invalids=0.pth"
+                    save_model_path = os.path.join(model_dir, model_save_name)
+                    best_mae_model["save_path"] = save_model_path
+                    torch.save(model.state_dict(), save_model_path)
 
         # print performance info every so often
-        if epoch % print_freq == 0:
+        if verbose and epoch % print_freq == 0:
             invalid_train_MEFs, invalid_train_MDFs = get_count_invalid_preds(train_pred_coeff)
             invalid_val_MEFs, invalid_val_MDFs = get_count_invalid_preds(val_pred_coeff)
             train_r2 = get_r_squared(train_pred_coeff, train_bottleneck_X, train_y)
@@ -427,44 +447,51 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
                 # evaluate on last point in sequence only
                 train_r2 = train_r2[-1] 
             print(f"[Epoch {epoch}]")
-            print(f"\tTrain Set: Loss={train_loss.item():.3e}, R Squared={train_r2:.4f}, Invalid MEFs={invalid_train_MEFs}, Invalid MDFs={invalid_train_MDFs}")
-            print(f"\tVal Set: Loss={val_loss.item():.3e}, R Squared={val_r2:.4f}, Invalid MEFs={invalid_val_MEFs}, Invalid MDFs={invalid_val_MDFs}")
+            print(f"\tTrain Set: Loss={train_loss:.3e}, R Squared={train_r2:.4f}, Invalid MEFs={invalid_train_MEFs}, Invalid MDFs={invalid_train_MDFs}")
+            print(f"\tVal Set: Loss={val_loss:.3e}, R Squared={val_r2:.4f}, Invalid MEFs={invalid_val_MEFs}, Invalid MDFs={invalid_val_MDFs}")
 
         # stop if we aren't improving after 10k epochs
         if best_r2_epoch and epoch > 10000 + best_r2_epoch:
-            print("Early stopping as we haven't made an improvement on validation set in 10,000 epochs.")
+            if verbose:
+                print("Early stopping as we haven't made an improvement on validation set in 10,000 epochs.")
             break
     
-    plot_losses(train_losses, val_losses, model_dir)
+        del val_pred_coeff
+        del train_pred_coeff
+    
+    plot_losses(train_losses, val_losses, model_dir, verbose)
 
     results_str = f"Best R Squared seen on epoch {best_r2_epoch}: {best_r2:.4f}"
     results_str += f"\nBest MAE seen on epoch {best_mae_epoch}: {best_mae:.2f}"
-    results_str += f"\nBest-R2-model with R2 above {min_save_r2=} and 0 invalid coefficients predicted on train/test sets:"
+    
+    results_str += f"\nBest-R2-model with 0 invalid coefficients predicted on train/val sets:"
+    results_str += f"\n\tValidation R2: {best_r2_model['r2']:.4f}"
+    results_str += f"\n\tValidation MAE: {best_r2_model['mae']:.2f}"
+    if not final_point_only:
+        r2_str_list = [f"{val:.4f}" for val in best_r2_model['seq-wise-r2']]
+        results_str += f"\n\tValidation sequence-wise-R2: {r2_str_list}"
+        mae_str_list = [f"{val:.2f}" for val in best_r2_model['seq-wise-mae']]
+        results_str += f"\n\tValidation sequence-wise-MAE: {mae_str_list}"
+    results_str += f"\n\tEpoch seen: {best_r2_model['epoch']}"
     if "save_path" not in best_r2_model:
-        results_str += f"\n\tNo such model was encountered"
+        results_str += f"\n\tNo such model with R2 above {min_save_r2=} was encountered."
     else:
-        results_str += f"\n\tValidation R2: {best_r2_model['r2']:.4f}"
-        results_str += f"\n\tValidation MAE: {best_r2_model['mae']:.2f}"
-        if not final_point_only:
-            r2_str_list = [f"{val:.4f}" for val in best_r2_model['seq-wise-r2']]
-            results_str += f"\n\tValidation sequence-wise-R2: {r2_str_list}"
-            mae_str_list = [f"{val:.2f}" for val in best_r2_model['seq-wise-mae']]
-            results_str += f"\n\tValidation sequence-wise-MAE: {mae_str_list}"
-        results_str += f"\n\tEpoch seen: {best_r2_model['epoch']}"
         results_str += f"\n\tModel file: {best_r2_model['save_path'].split('/')[-1]}"
-    results_str += f"\nBest-MAE-model with MAE below {max_save_mae=} and 0 invalid coefficients predicted on train/test sets:"
+    
+    results_str += f"\nBest-MAE-model with 0 invalid coefficients predicted on train/val sets:"
+    results_str += f"\n\tValidation R2: {best_mae_model['r2']:.4f}"
+    results_str += f"\n\tValidation MAE: {best_mae_model['mae']:.2f}"
+    if not final_point_only:
+        r2_str_list = [f"{val:.4f}" for val in best_mae_model['seq-wise-r2']]
+        results_str += f"\n\tValidation sequence-wise-R2: {r2_str_list}"
+        mae_str_list = [f"{val:.2f}" for val in best_mae_model['seq-wise-mae']]
+        results_str += f"\n\tValidation sequence-wise-MAE: {mae_str_list}"
+    results_str += f"\n\tEpoch seen: {best_mae_model['epoch']}"
     if "save_path" not in best_mae_model:
-        results_str += f"\n\tNo such model was encountered"
+        results_str += f"\n\tNo model with MAE below {max_save_mae=} was encountered."
     else:
-        results_str += f"\n\tValidation R2: {best_mae_model['r2']:.4f}"
-        results_str += f"\n\tValidation MAE: {best_mae_model['mae']:.2f}"
-        if not final_point_only:
-            r2_str_list = [f"{val:.4f}" for val in best_mae_model['seq-wise-r2']]
-            results_str += f"\n\tValidation sequence-wise-R2: {r2_str_list}"
-            mae_str_list = [f"{val:.2f}" for val in best_mae_model['seq-wise-mae']]
-            results_str += f"\n\tValidation sequence-wise-MAE: {mae_str_list}"
-        results_str += f"\n\tEpoch seen: {best_mae_model['epoch']}"
         results_str += f"\n\tModel file: {best_mae_model['save_path'].split('/')[-1]}"
+        
     if not final_point_only:
         results_str += f"\nSequence-wise-R2 with the highest R2 at any point in the sequence of {best_r2_any_point:.4f}:"
         r2_str_list = [f"{val:.4f}" for val in best_r2_any_point_list]
@@ -473,9 +500,14 @@ def train_model_with_params_batched(data_sets, data_settings,  # data
         mae_str_list = [f"{val:.2f}" for val in best_mae_any_point_list]
         results_str += f"\n\t{mae_str_list}"
 
-    print(results_str)
+    if verbose:
+        print(results_str)
     with open(os.path.join(model_dir, "results.txt"), 'w+') as f:
         f.write(results_str)
+        
+    
+    return (best_r2_model['r2'] if 'r2' in best_r2_model else None,
+            best_mae_model['mae'] if 'mae' in best_mae_model else None)
 
 ## Old un-batched training function -- likely will remove this.
 # def train_model_with_params(train_X, val_X, train_bottleneck_X, val_bottleneck_X, train_y, val_y,  # data
