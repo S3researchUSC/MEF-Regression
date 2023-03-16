@@ -1,0 +1,6 @@
+Best R Squared seen on epoch 30059: 0.8836
+Best-R2-model with R2 above min_save_r2=0.87 and 0 invalid coefficients predicted on train/test sets:
+	Validation R2: 0.8836
+	Validation MAE: 136886.79
+	Epoch seen: 30059
+	Model file: C:\Users\nicklein\Documents\MEF-Regression\FF_models\base4_features\2023_01_27-04_25_05_PM\epoch=30059,r2=0.8836,Invalids=0.pth

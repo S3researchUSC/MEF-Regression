@@ -1,0 +1,17 @@
+Model Settings:
+	n_input=4
+	hidden_dims=[512, 256]
+	n_out=3
+	dropout_p=0.5
+	bias_term=True
+Optimizer Settings:
+	learning_rate=0.01
+	weight_decay=0.01
+Loss Function Settings:
+	loss_function=<function mse_loss_regularized_preds_l1 at 0x000002B45E49F160>
+	MEF_reg_weight=1000000.0
+	MDF_reg_weight=1000000.0
+Train Process Settings:
+	epochs=40000
+	min_save_r2=0.87
+Features: Load, VRE, Hour, Day_of_Year

@@ -1,6 +1,14 @@
-FF_models
+# Specifically only including the best MLP model
+FF_models/*
+!FF_models/base4_features
+
+FF_models/base4_features/*
+!FF_models/base4_features/2023_01_27-04_25_05_PM
+
+# not including any of the other models
 lstm_models
 attention_models
+
 .ipynb_checkpoints
 
 # Byte-compiled / optimized / DLL files
