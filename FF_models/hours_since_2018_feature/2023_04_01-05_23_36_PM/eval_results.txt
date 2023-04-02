@@ -1,0 +1,12 @@
+R Squared:
+	Train: 0.9164
+	Val: 0.8933
+	Test: 0.8929
+Mean Absolute Error:
+	Train: 116886.63
+	Val: 130745.96
+	Test: 126760.97
+Count Invalid Values Predicted:
+	Train: Invalid MEFs=0, Invalid MDFs=0
+	Val: Invalid MEFs=0, Invalid MDFs=0
+	Test: Invalid MEFs=0, Invalid MDFs=0

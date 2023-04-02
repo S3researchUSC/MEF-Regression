@@ -1,9 +1,10 @@
 # Specifically only including the best MLP model
 FF_models/*
-!FF_models/base4_features
+!FF_models/hours_since_2018_feature
+!FF_models/scaler.hours_since_2018.pkl
 
-FF_models/base4_features/*
-!FF_models/base4_features/2023_01_27-04_25_05_PM
+FF_models/hours_since_2018_feature/*
+!FF_models/hours_since_2018_feature/2023_04_01-05_23_36_PM
 
 # not including any of the other models
 lstm_models
