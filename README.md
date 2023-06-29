@@ -25,6 +25,9 @@ We include results here for our best model only, which was created using the `ML
 * Model .pth file
 * Model predictions on the whole 2 years of data along with train/validation/test-set assignments
 
+# Suggested Citation
+A suggested citation will be added upon publication of the affiliated research paper. 
+
 # Contact info
 Nicholas Klein  
 nicklein@umich.edu | nmklein@usc.edu | https://www.linkedin.com/in/nic-klein/
