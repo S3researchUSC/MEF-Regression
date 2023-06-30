@@ -1,5 +1,5 @@
 # Introduction
-This is the repository for the paper "Forecasting Marginal Emissions Factors for Demand-Side Management"
+This is the repository for the paper "Using Neural Networks to Forecast Marginal Emissions Factors: A CAISO Case-Study"
 
 # Reproducing Results
 * Follow steps in `MLP_MEFs.ipynb`. Update the hyperparameter settings to the ones reported in `FF_models/hours_since_2018_feature/2023_04_01-05_23_36_PM/experiment_settings.txt`, or experiment with new settings.
