@@ -1,0 +1,6 @@
+Best R Squared seen on epoch 36980: 0.3815
+Best-R2-model with R2 above min_save_r2=0.35 and 0 invalid coefficients predicted on train/test sets:
+	Validation R2: 0.3815
+	Validation MAE: 963.52
+	Epoch seen: 36980
+	Model file: C:\Users\nicklein\Documents\MEF-Regression\MLP_ERCOT_2022_models\delta_SO2_round1\2023_11_01-10_20_25_AM\epoch=36980,r2=0.3815,Invalids=0.pth

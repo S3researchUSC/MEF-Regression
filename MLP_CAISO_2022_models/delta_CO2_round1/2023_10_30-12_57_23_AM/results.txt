@@ -1,0 +1,6 @@
+Best R Squared seen on epoch 35033: 0.7823
+Best-R2-model with R2 above min_save_r2=0.6 and 0 invalid coefficients predicted on train/test sets:
+	Validation R2: 0.7823
+	Validation MAE: 157615.89
+	Epoch seen: 35033
+	Model file: C:\Users\nicklein\Documents\MEF-Regression\MLP_CAISO_2022_models\delta_CO2_round1\2023_10_30-12_57_23_AM\epoch=35033,r2=0.7823,Invalids=0.pth

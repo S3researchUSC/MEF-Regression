@@ -1,10 +1,36 @@
-# Specifically only including the best MLP model
+## Specifically only including the best MLP models
+
+# original 2018-2021 caiso
 FF_models/*
 !FF_models/hours_since_2018_feature
 !FF_models/scaler.hours_since_2018.pkl
 
 FF_models/hours_since_2018_feature/*
 !FF_models/hours_since_2018_feature/2023_04_01-05_23_36_PM
+
+# caiso 2022 co2
+MLP_CAISO_2022_models/delta_CO2_round1/*
+!MLP_CAISO_2022_models/delta_CO2_round1/2023_10_30-12_57_23_AM
+
+# caiso 2022 so2
+MLP_CAISO_2022_models/delta_SO2_round1/*
+!MLP_CAISO_2022_models/delta_SO2_round1/2023_10_31-03_35_41_PM
+
+# caiso 2022 nox
+MLP_CAISO_2022_models/delta_NOx_round1/*
+!MLP_CAISO_2022_models/delta_NOx_round1/2023_10_31-03_59_01_PM
+
+# ercot 2022 co2
+MLP_ERCOT_2022_models/delta_CO2_round1/*
+!MLP_ERCOT_2022_models/delta_CO2_round1/2023_10_31-04_31_15_PM
+
+# ercot 2022 so2
+MLP_ERCOT_2022_models/delta_SO2_round1/*
+!MLP_ERCOT_2022_models/delta_SO2_round1/2023_11_01-10_20_25_AM
+
+# ercot 2022 nox
+MLP_ERCOT_2022_models/delta_NOx_round1/*
+!MLP_ERCOT_2022_models/delta_NOx_round1/2023_11_01-10_50_00_AM
 
 # not including any of the other models
 lstm_models

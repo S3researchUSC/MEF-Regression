@@ -1,0 +1,17 @@
+Model Settings:
+	n_input=5
+	hidden_dims=[512, 256, 128]
+	n_out=3
+	dropout_p=0.5
+	bias_term=True
+Optimizer Settings:
+	learning_rate=0.001
+	weight_decay=0.03
+Loss Function Settings:
+	loss_function=<function mse_loss_regularized_preds_l1 at 0x00000180DB7771F0>
+	MEF_reg_weight=200
+	MDF_reg_weight=200
+Train Process Settings:
+	epochs=60000
+	min_save_r2=0.35
+Features: CAISO_Demand_MWh, CAISO_VRE_MWh, Hour, Month, Time_Elapsed\Target_col: delta_NOx
